@@ -1,3 +1,5 @@
+
+
 import { GoogleGenAI } from "@google/genai";
 
 const getClient = () => {
@@ -43,6 +45,40 @@ export const fetchEurPlnRate = async (): Promise<number> => {
 
   } catch (error) {
     console.error("Gemini API Error:", error);
+    throw error;
+  }
+};
+
+export const fetchRouteDistance = async (origin: string, destination: string): Promise<number> => {
+  try {
+    const ai = getClient();
+    const model = 'gemini-2.5-flash';
+
+    const systemPrompt = "You are a logistics assistant. Calculate the driving distance in kilometers between the two locations provided. Return ONLY the numeric value (integer or decimal). Do not return text like 'km' or 'kilometers'. If you cannot find the route, return '0'.";
+    const userQuery = `Driving distance from ${origin} to ${destination}`;
+
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: userQuery,
+      config: {
+        systemInstruction: systemPrompt,
+        tools: [{ googleSearch: {} }] // Use Search/Maps grounding
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("Empty response");
+
+    const cleanText = text.replace(/[^\d.]/g, '');
+    const km = parseFloat(cleanText);
+
+    if (isNaN(km)) {
+      throw new Error("Invalid distance format");
+    }
+    return km;
+
+  } catch (error) {
+    console.error("Gemini Route Error:", error);
     throw error;
   }
 };

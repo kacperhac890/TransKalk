@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Truck, 
@@ -10,23 +11,27 @@ import {
   DollarSign, 
   Wrench, 
   ChevronDown, 
-  TrendingUp,
-  Save,
-  History,
-  Trash2,
-  Download,
-  Calendar,
-  XCircle,
-  Calculator,
-  LogOut,
-  Shield,
-  User as UserIcon,
-  Gauge,
-  ArrowRightLeft
+  TrendingUp, 
+  Save, 
+  History, 
+  Trash2, 
+  Download, 
+  Calendar, 
+  XCircle, 
+  Calculator, 
+  LogOut, 
+  Shield, 
+  User as UserIcon, 
+  Gauge, 
+  ArrowRightLeft, 
+  MapPin, 
+  Navigation, 
+  ExternalLink,
+  Map as LucideMap // Aliased to avoid conflict with JS Map constructor
 } from 'lucide-react';
 import { DICTIONARY, TAX_RATES, FUEL_CONSUMPTION_L_PER_100KM } from './constants';
 import { Language, Currency, CalculationResults, SavedTrip, User } from './types';
-import { fetchEurPlnRate } from './services/geminiService';
+import { fetchEurPlnRate, fetchRouteDistance } from './services/geminiService';
 import { initAuth, getCurrentUser, logout } from './services/authService';
 import Login from './Login';
 import AdminPanel from './AdminPanel';
@@ -44,6 +49,14 @@ const App: React.FC = () => {
   const [rateError, setRateError] = useState<string | null>(null);
 
   const [tripDate, setTripDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  
+  // Route State
+  const [startLocation, setStartLocation] = useState<string>('');
+  const [endLocation, setEndLocation] = useState<string>('');
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState<boolean>(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [visualizedRoute, setVisualizedRoute] = useState<{start: string, end: string} | null>(null);
+
   const [distance, setDistance] = useState<number | ''>('');
   
   // Revenue Inputs
@@ -119,6 +132,40 @@ const App: React.FC = () => {
       setRateError(dict.rateFetchError(exchangeRate.toFixed(4)));
     } finally {
       setIsFetchingRate(false);
+    }
+  };
+
+  const handleCalculateRoute = async () => {
+    if (!startLocation || !endLocation || isCalculatingRoute) return;
+    
+    setIsCalculatingRoute(true);
+    setRouteError(null);
+    // Update map visualization when calculation starts
+    setVisualizedRoute({ start: startLocation, end: endLocation });
+
+    try {
+      // Correctly passing start and end locations to the service
+      const km = await fetchRouteDistance(startLocation, endLocation);
+      if (km > 0) {
+        setDistance(km);
+      } else {
+        setRouteError(dict.routeError);
+      }
+    } catch (e) {
+      console.error(e);
+      setRouteError(dict.routeError);
+    } finally {
+      setIsCalculatingRoute(false);
+    }
+  };
+
+  const handleSwapLocations = () => {
+    const temp = startLocation;
+    setStartLocation(endLocation);
+    setEndLocation(temp);
+    // If we have a visualized route, swap that too to reflect immediately
+    if (visualizedRoute) {
+      setVisualizedRoute({ start: endLocation, end: startLocation });
     }
   };
 
@@ -206,7 +253,9 @@ const App: React.FC = () => {
         fuelConsumption, 
         taxResidency,
         isEuroMode,
-        exchangeRate
+        exchangeRate,
+        startLocation,
+        endLocation
       },
       summary: {
         totalNetProfit: results.totalNetProfit,
@@ -220,7 +269,17 @@ const App: React.FC = () => {
   const handleLoadTrip = (trip: SavedTrip) => {
     const { inputs } = trip;
     if (trip.date) setTripDate(trip.date);
+    
     setDistance(inputs.distance);
+    setStartLocation(inputs.startLocation || '');
+    setEndLocation(inputs.endLocation || '');
+    
+    if (inputs.startLocation && inputs.endLocation) {
+      setVisualizedRoute({ start: inputs.startLocation, end: inputs.endLocation });
+    } else {
+      setVisualizedRoute(null);
+    }
+    
     setFreightAmount(inputs.freightAmount);
     // Load new fields, with backward compatibility fallback
     setRatePerKm(inputs.ratePerKm || '');
@@ -268,7 +327,7 @@ const App: React.FC = () => {
       totalKm += dist;
     });
 
-    return { totalProfit, totalKm };
+    return { totalProfit, totalKm, count: filteredTrips.length };
   }, [filteredTrips]);
 
 
@@ -415,8 +474,117 @@ const App: React.FC = () => {
             <span className="text-gray-600">{dict.currentRateLabel}</span> 1 EUR = <strong className="text-gray-900">{formatMoney(exchangeRate, 'PLN')}</strong>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-8">
             
+             {/* --- ROUTE PLANNING SECTION --- */}
+             <div className="bg-blue-50 p-6 rounded-xl border-2 border-blue-200 shadow-md">
+              <div className="flex items-center mb-4 text-blue-900">
+                <LucideMap className="w-6 h-6 mr-2" />
+                <h3 className="text-xl font-bold">{dict.routePlanningTitle}</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative mb-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">{dict.loadingLocationLabel}</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-600 w-5 h-5 z-10" />
+                    <input
+                      type="text"
+                      value={startLocation}
+                      onChange={(e) => setStartLocation(e.target.value)}
+                      placeholder={dict.originPlaceholder}
+                      className="w-full pl-10 p-3 border border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 bg-white shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Swap Button (Desktop) */}
+                <button 
+                  onClick={handleSwapLocations}
+                  className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-[10%] bg-white p-2 rounded-full border border-gray-300 shadow-md text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-gray-50 hidden md:flex items-center justify-center z-10 transition-colors"
+                  title="Swap locations"
+                >
+                  <ArrowRightLeft className="w-5 h-5" />
+                </button>
+
+                {/* Swap Button (Mobile) */}
+                <div className="md:hidden flex justify-center -my-3">
+                  <button 
+                      onClick={handleSwapLocations}
+                      className="bg-white p-2 rounded-full border border-gray-300 shadow-sm text-gray-500 hover:text-blue-600"
+                    >
+                      <ArrowRightLeft className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">{dict.unloadingLocationLabel}</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-red-600 w-5 h-5 z-10" />
+                    <input
+                      type="text"
+                      value={endLocation}
+                      onChange={(e) => setEndLocation(e.target.value)}
+                      placeholder={dict.destinationPlaceholder}
+                      className="w-full pl-10 p-3 border border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 bg-white shadow-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Route Actions Row */}
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div className="w-full sm:w-auto">
+                    {startLocation && endLocation && (
+                    <a 
+                      href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(startLocation)}&destination=${encodeURIComponent(endLocation)}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 text-sm flex items-center font-medium bg-white px-4 py-2 rounded-lg border border-blue-200 shadow-sm w-full justify-center sm:w-auto"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      {dict.viewOnMaps}
+                    </a>
+                  )}
+                </div>
+                <button
+                    onClick={handleCalculateRoute}
+                    disabled={isCalculatingRoute || !startLocation || !endLocation}
+                    className="w-full sm:w-auto px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center shadow-md"
+                  >
+                    {isCalculatingRoute ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Navigation className="w-4 h-4 mr-2" />
+                    )}
+                    {dict.calculateDistanceButton}
+                  </button>
+              </div>
+
+              {routeError && (
+                <div className="mt-3 text-sm text-red-600 bg-red-50 p-2 rounded border border-red-100 flex items-center">
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  {routeError}
+                </div>
+              )}
+
+              {/* Embedded Map */}
+              {visualizedRoute && (
+                <div className="rounded-lg overflow-hidden border border-gray-300 shadow-md bg-white mt-4 transition-all duration-500 h-[350px]">
+                    <iframe
+                      title="Route Visualization"
+                      width="100%"
+                      height="350"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(visualizedRoute.start)}%20to%20${encodeURIComponent(visualizedRoute.end)}&t=&z=6&ie=UTF8&iwloc=&output=embed`}
+                    ></iframe>
+                </div>
+              )}
+            </div>
+
             {/* Trip Date Input */}
             <div>
               <label htmlFor="tripDate" className="block text-lg font-medium text-gray-700 mb-2">
@@ -638,6 +806,19 @@ const App: React.FC = () => {
             {isEuroMode ? dict.resultsTitleEur : dict.resultsTitlePln}
           </h2>
 
+          {/* New Route Display */}
+          {startLocation && endLocation && (
+            <div className="mb-6 p-4 rounded-lg bg-gray-50 border border-gray-200 flex items-center text-gray-700">
+              <LucideMap className="w-5 h-5 mr-3 text-blue-600 flex-shrink-0" />
+              <div className="font-medium text-lg">
+                <span className="text-gray-500 mr-2 text-sm uppercase font-bold tracking-wider">{dict.routeLabel}</span>
+                <span className="text-gray-900">{startLocation}</span> 
+                <span className="mx-2 text-gray-400">&rarr;</span> 
+                <span className="text-gray-900">{endLocation}</span>
+              </div>
+            </div>
+          )}
+
           {/* Revenue */}
           <div className="p-4 rounded-lg bg-indigo-50 text-indigo-700 mb-6 border border-indigo-100">
             <div className="flex justify-between items-center">
@@ -680,6 +861,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
+          {/* ... Costs Summary ... */}
           <div className="mt-6 pt-4 border-t border-gray-200 space-y-4">
             {/* Total Op Cost */}
             <div className="flex justify-between items-center p-4 rounded-lg bg-red-50 text-red-700 font-extrabold border border-red-100">
@@ -781,16 +963,34 @@ const App: React.FC = () => {
 
           {/* Summary Card (Visible if there are trips to show) */}
           {filteredTrips.length > 0 && (
-            <div className="mb-6 bg-blue-50 border border-blue-100 p-4 rounded-lg flex flex-col sm:flex-row justify-between items-center text-blue-800">
-              <div className="flex items-center mb-2 sm:mb-0">
-                <Calculator className="w-6 h-6 mr-3 text-blue-600" />
+            <div className="mb-6 p-6 rounded-xl bg-blue-50 border border-blue-100 shadow-sm">
+              <div className="flex items-center mb-4 text-blue-900 border-b border-blue-200 pb-2">
+                <Calculator className="w-6 h-6 mr-2 text-blue-600" />
                 <span className="font-bold text-lg">
                   {(filterStartDate || filterEndDate) ? dict.periodSummaryTitle : dict.allHistorySummaryTitle}
                 </span>
               </div>
-              <div className="text-right">
-                <div className="text-sm opacity-80">{dict.periodTotalDistance} <span className="font-bold">{periodSummary.totalKm} km</span></div>
-                <div className="text-xl font-extrabold">{dict.periodTotalProfit} <span>{formatResultCurrency(periodSummary.totalProfit)}</span></div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Count */}
+                <div className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm flex flex-col items-center justify-center text-center">
+                  <div className="text-gray-500 text-sm mb-1 uppercase font-semibold tracking-wider">{dict.summaryTripsCount}</div>
+                  <div className="text-3xl font-bold text-gray-800">{periodSummary.count}</div>
+                </div>
+
+                {/* Distance */}
+                <div className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm flex flex-col items-center justify-center text-center">
+                  <div className="text-gray-500 text-sm mb-1 uppercase font-semibold tracking-wider">{dict.periodTotalDistance}</div>
+                  <div className="text-3xl font-bold text-blue-600">{periodSummary.totalKm} km</div>
+                </div>
+
+                {/* Profit */}
+                <div className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm flex flex-col items-center justify-center text-center">
+                  <div className="text-gray-500 text-sm mb-1 uppercase font-semibold tracking-wider">{dict.periodTotalProfit}</div>
+                  <div className={`text-3xl font-bold ${periodSummary.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatResultCurrency(periodSummary.totalProfit)}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -812,6 +1012,11 @@ const App: React.FC = () => {
                         {getDisplayDate(trip)}
                       </div>
                       <div className="font-semibold text-gray-700">
+                         {trip.inputs.startLocation && trip.inputs.endLocation ? (
+                           <span className="block mb-1 text-xs uppercase tracking-wide text-blue-600">
+                             {trip.inputs.startLocation} &rarr; {trip.inputs.endLocation}
+                           </span>
+                         ) : null}
                         {trip.inputs.distance} km • {TAX_RATES[trip.inputs.taxResidency].flag} {trip.inputs.taxResidency}
                       </div>
                       <div className={`font-bold ${isProfitable ? 'text-green-600' : 'text-red-600'}`}>

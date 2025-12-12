@@ -1,3 +1,5 @@
+
+
 import { Dictionary, TaxRates } from './types';
 
 export const FUEL_CONSUMPTION_L_PER_100KM = 34; // Default value
@@ -62,8 +64,9 @@ export const DICTIONARY: Dictionary = {
     filterDateTo: "Data do:",
     periodSummaryTitle: "Podsumowanie Wybranego Okresu",
     allHistorySummaryTitle: "Podsumowanie (Wszystkie Trasy)",
-    periodTotalProfit: "Łączny Zysk Netto:",
-    periodTotalDistance: "Łączny Dystans:",
+    periodTotalProfit: "Łączny Zysk Netto",
+    periodTotalDistance: "Łączny Dystans",
+    summaryTripsCount: "Liczba tras",
     clearFilters: "Wyczyść filtry",
     
     // Auth
@@ -83,6 +86,19 @@ export const DICTIONARY: Dictionary = {
     deleteUserConfirm: "Czy na pewno chcesz usunąć tego użytkownika?",
     userCreatedSuccess: "Użytkownik został utworzony.",
     fillAllFields: "Wypełnij wszystkie pola.",
+
+    // Route
+    routePlanningTitle: "Planowanie Trasy (Google Maps)",
+    loadingLocationLabel: "Miejsce Załadunku",
+    unloadingLocationLabel: "Miejsce Rozładunku",
+    originLabel: "Miejsce początkowe",
+    destinationLabel: "Miejsce docelowe",
+    originPlaceholder: "np. Warszawa",
+    destinationPlaceholder: "np. Berlin",
+    calculateDistanceButton: "Pobierz dystans",
+    viewOnMaps: "Zobacz na mapie",
+    routeError: "Nie udało się obliczyć dystansu. Spróbuj wpisać dokładniejsze dane.",
+    routeLabel: "Trasa:",
   },
   en: {
     headerTitle: "Transportation Cost Calculator",
@@ -135,8 +151,9 @@ export const DICTIONARY: Dictionary = {
     filterDateTo: "Date to:",
     periodSummaryTitle: "Selected Period Summary",
     allHistorySummaryTitle: "Summary (All Trips)",
-    periodTotalProfit: "Total Net Profit:",
-    periodTotalDistance: "Total Distance:",
+    periodTotalProfit: "Total Net Profit",
+    periodTotalDistance: "Total Distance",
+    summaryTripsCount: "Number of trips",
     clearFilters: "Clear filters",
 
     // Auth
@@ -156,5 +173,18 @@ export const DICTIONARY: Dictionary = {
     deleteUserConfirm: "Are you sure you want to delete this user?",
     userCreatedSuccess: "User created successfully.",
     fillAllFields: "Please fill all fields.",
+
+    // Route
+    routePlanningTitle: "Route Planning (Google Maps)",
+    loadingLocationLabel: "Loading Location",
+    unloadingLocationLabel: "Unloading Location",
+    originLabel: "Start Location",
+    destinationLabel: "End Location",
+    originPlaceholder: "e.g. Warsaw",
+    destinationPlaceholder: "e.g. Berlin",
+    calculateDistanceButton: "Get Distance",
+    viewOnMaps: "View on Map",
+    routeError: "Could not calculate distance. Try entering more specific locations.",
+    routeLabel: "Route:",
   }
 };

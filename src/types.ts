@@ -1,3 +1,5 @@
+
+
 export type Language = 'pl' | 'en';
 export type Currency = 'PLN' | 'EUR';
 
@@ -39,6 +41,8 @@ export interface TripInputs {
   isEuroMode: boolean;
   exchangeRate: number;
   fuelConsumption: number;
+  startLocation: string; // New field
+  endLocation: string;   // New field
 }
 
 export interface SavedTrip {
@@ -113,6 +117,7 @@ export interface DictionaryEntry {
   allHistorySummaryTitle: string;
   periodTotalProfit: string;
   periodTotalDistance: string;
+  summaryTripsCount: string; // New
   clearFilters: string;
   loginTitle: string;
   usernameLabel: string;
@@ -130,6 +135,19 @@ export interface DictionaryEntry {
   deleteUserConfirm: string;
   userCreatedSuccess: string;
   fillAllFields: string;
+  
+  // Route Planning
+  routePlanningTitle: string;
+  loadingLocationLabel: string;
+  unloadingLocationLabel: string;
+  originLabel: string;
+  destinationLabel: string;
+  originPlaceholder: string;
+  destinationPlaceholder: string;
+  calculateDistanceButton: string;
+  viewOnMaps: string;
+  routeError: string;
+  routeLabel: string;
 }
 
 export interface Dictionary {
